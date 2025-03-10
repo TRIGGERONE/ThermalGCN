@@ -13,10 +13,6 @@ for i in range(400):
         tmr_end = time.time()
         print(tmr_end - tmr_start)
 
-       # cmd = "../grid_thermal_map.pl Chiplet_Core.flp Chiplet.grid.steady 64 64 > Chiplet" + str(i) + str(j) + ".svg"
-        
-       # os.system(cmd)
-
         print(i,j)
 
         

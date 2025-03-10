@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import genfromtxt
 import random
+import os
 
 Num_layout = 400
 Num_power = 20
@@ -33,6 +34,9 @@ Temperature_max = np.amax(node_labels[:, 1])
 Temperature_min = np.amin(node_labels[:, 1])
 Conductance_max = np.amax(edge_feats[:, 2])
 Conductance_min = np.amin(edge_feats[:, 2])
+
+if not os.path.exists('./newdata'):
+    os.mkdir('./newdata')
 
 
 

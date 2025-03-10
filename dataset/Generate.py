@@ -42,8 +42,10 @@ def regionCreate(BL_x0, BL_y0, BL_w, BL_h, CO_x0, CO_y0, CO_w, CO_h, i, count, r
 for i in range(400):
     count = 0
     info = []
+    # Randomly choose a center index
     CenterX = random.choice(Center)
     CenterY = random.choice(Center)
+    
     #Region 1
     BL_x0 = 0
     BL_y0 = 0
@@ -52,10 +54,12 @@ for i in range(400):
 
     CenterV = []
     CenterH = []
+    
     for j in range(BL_x0, BL_x0 + BL_w - CoreW + 1):
         CenterV.append(j)
     for j in range(BL_y0, BL_y0 + BL_h - CoreW + 1):
         CenterH.append(j)
+
     CO_x0 = random.choice(CenterV)
     CO_y0 = random.choice(CenterH)
     CO_w = CoreW

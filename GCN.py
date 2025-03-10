@@ -5,7 +5,9 @@ import dgl.function as fn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math, time, os
+import math
+import time
+import os
 import numpy as np
 from numpy import genfromtxt
 

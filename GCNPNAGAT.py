@@ -6,17 +6,20 @@ from dgl.nn import edge_softmax
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math, time, os
+import math
+import time
+import os
 import numpy as np
 from numpy import genfromtxt
 
 import csv
 from shutil import copyfile
 
-dataset_dir = './dataset/data/'
+dataset_dir = './dataset/newdata/'
 results_dir = './dataset/dataresults/'
 
-
+if not os.path.exists(results_dir):
+    os.mkdir(results_dir)
 
 
 MaxMinValues = genfromtxt(dataset_dir + 'MaxMinValues.csv', delimiter=',')
@@ -93,8 +96,10 @@ def normal_init(m, mean, std):
 
 
 class MLP(nn.Module):
-    def __init__(self,
-                 MLP_hidden_n):
+    def __init__(
+            self,
+            MLP_hidden_n
+        ):
         super(MLP, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(len(MLP_hidden_n) - 1):
@@ -115,15 +120,17 @@ class MLP(nn.Module):
 
 
 class HSConv(nn.Module):
-    def __init__(self,
-                 Skipnode_in_feats_size,
-                 node_in_feats_size,
-                 edge_in_feats_size,
-                 node_out_feats_size,
-                 edge_out_feats_size,
-                 aggregators, 
-                 scalers,
-                 avg_d):
+    def __init__(
+        self,
+        Skipnode_in_feats_size,
+        node_in_feats_size,
+        edge_in_feats_size,
+        node_out_feats_size,
+        edge_out_feats_size,
+        aggregators, 
+        scalers,
+        avg_d
+    ):
         super(HSConv, self).__init__()
 
         self.Skipnode_in_feats_size = Skipnode_in_feats_size
@@ -207,13 +214,14 @@ class HSConv(nn.Module):
 
 class HSModel(nn.Module):
     def __init__(self,
-                 Skipnode_in_feats_size,
-                 n_hidden_n,
-                 e_hidden_e,
-                 aggregators,
-                 scalers,
-                 avg_d,
-                 activation):
+        Skipnode_in_feats_size,
+        n_hidden_n,
+        e_hidden_e,
+        aggregators,
+        scalers,
+        avg_d,
+        activation
+    ):
         super(HSModel, self).__init__()
         self.layers = nn.ModuleList()
         self.activation = activation
