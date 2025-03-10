@@ -53,11 +53,13 @@ batch_size = 1
 if torch.cuda.is_available():
     device = torch.device('cuda')
     print('Running on GPU!')
+elif torch.mps.is_available():
+    device = torch.device('mps')
+    print('Running on MPS')
 else:
     device = torch.device('cpu')
     print('Runing on CPU!')
 
-#device = torch.device('cpu')
 
 EPS = 1e-5
 
