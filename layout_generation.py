@@ -5,6 +5,7 @@ import math
 import numpy as np
 from torch.utils.data import WeightedRandomSampler
 from torch import Tensor
+from scipy.ndimage import label, find_objects
 
 Center = [3, 4, 5, 6, 7, 8, 9]
 ChipW = 12
@@ -102,16 +103,17 @@ def check_intersection(core_UL_row: list, core_UL_col: list, num_core_grid_x: in
     return count, dis
 
 
-def dataset_generation(count: int = 20):
+def dataset_generation(count: int = 1, mode: str = "random"):
     total_dis = 0
     total_count = count
+    core_UL_row_list, core_UL_col_list = [], []
     while count > 0:
         core_UL_row, core_UL_col, num_core_grid_x, num_core_grid_y = region_generate(
             layout_path="./newlayout",
             num_grid_x=100,
             num_grid_y=100,
             numcore=4,
-            mode='random'
+            mode=mode
         )
         count, dis = check_intersection(
             core_UL_row=core_UL_row,
@@ -120,13 +122,78 @@ def dataset_generation(count: int = 20):
             num_core_grid_y=num_core_grid_y,
             count=count
         )
+        print(count)
+
         if dis is not None:
             total_dis += dis
-        print(count)
+            core_UL_row_list.append(core_UL_row)
+            core_UL_col_list.append(core_UL_col)
+
+    regionCreate(
+        core_UL_row_list=core_UL_row_list,
+        core_UL_col_list=core_UL_col_list,
+        num_grid_x=100,
+        num_grid_y=100,
+        num_core_grid_x=num_core_grid_x,
+        num_core_grid_y=num_core_grid_y,
+        i=count
+    )
     
     print(total_dis / total_count)
+    return core_UL_row_list, core_UL_col_list, total_dis / total_count
 
 
+def regionCreate(
+        core_UL_row_list: list[list], 
+        core_UL_col_list: list[list], 
+        num_grid_x: int, 
+        num_grid_y: int, 
+        num_core_grid_x: int,
+        num_core_grid_y: int,
+        i: int
+    ):
+    with open('newlayout/Chiplet_Core' + str(i) + '.flp', 'a') as CoreRec:
+        for ite in range(len(core_UL_row_list)):
+            count = 0
+            
+            chip_fp = torch.zeros(size=[num_grid_x, num_grid_y])
+
+            TL_index_X, TL_index_Y = core_UL_row_list[ite], core_UL_col_list[ite]     # is a list
+            print(TL_index_X, TL_index_Y)
+
+            for p in range(len(TL_index_X)):
+                chip_fp[TL_index_X[p]: TL_index_X[p] + num_core_grid_x, TL_index_Y[p]: TL_index_Y[p] + num_core_grid_y] = 1
+
+            
+        TIM_index = chip_fp.nonzero()
+        print(TIM_index)
+
+        # if Width != 0:
+        #     count = count + 1
+        #     CoreRec.write("TIM" + str(count) + " " + str(Width * 1e-3) + " " + str(Hight * 1e-3) + " " + str(BL_x0 * 1e-3) + " " + str(BL_y0 * 1e-3) + " " + str(4e6)+" "+str(0.25)+"\n")
+        #     info.append(1)
+        # Width = BL_x0 + BL_w - CO_x0 - CO_w
+        # Hight = BL_h
+        # if Width != 0:
+        #     count = count + 1
+        #     CoreRec.write("TIM" + str(count) + " " + str(Width * 1e-3) + " " + str(Hight * 1e-3) + " " + str((CO_x0 + CO_w) * 1e-3) + " " + str(BL_y0 * 1e-3) + " " + str(4e6)+" "+str(0.25)+"\n")
+        #     info.append(1)
+        # Width = CO_w
+        # Hight = CO_y0 - BL_y0
+        # if Hight != 0:
+        #     count = count + 1
+        #     CoreRec.write("TIM" + str(count) + " " + str(Width * 1e-3) + " " + str(Hight * 1e-3) + " " + str(CO_x0 * 1e-3) + " " + str(BL_y0 * 1e-3) + " " + str(4e6)+" "+str(0.25)+"\n")
+        #     info.append(1)
+        # Width = CO_w
+        # Hight = BL_y0 + BL_h - CO_y0 - CO_h
+        # if Hight != 0:
+        #     count = count + 1
+        #     CoreRec.write("TIM" + str(count) + " " + str(Width * 1e-3) + " " + str(Hight * 1e-3) + " " + str(CO_x0 * 1e-3) + " " + str((CO_y0 + CO_h) * 1e-3) + " " + str(4e6)+" "+str(0.25)+"\n")
+        #     info.append(1)
+        # CoreRec.write("Core" + str(region) + " " + str(CO_w * 1e-3) + " " + str(CO_h * 1e-3) + " " + str(CO_x0 * 1e-3) + " " + str(CO_y0 * 1e-3)+"\n")
+        # info.append(2)
+
+        return None
 
 if __name__ == "__main__":
     torch.random.manual_seed(1234)
@@ -136,4 +203,18 @@ if __name__ == "__main__":
     #     num_grid_y=100,
     #     numcore=4
     # )
-    dataset_generation(count= 40)
+    dataset_generation(count = 1, mode="random")
+    # nonzero_blocks, top_left_corners = slicing_chip(
+    #     core_UL_row=[1, 5, 4, 8],
+    #     core_UL_col=[3, 4, 1, 7],
+    #     num_grid_x=10,
+    #     num_grid_y=10,
+    #     num_core_grid_y=2,
+    #     num_core_grid_x=2,
+    #     count=0
+    # )
+
+    # for block, corner in zip(nonzero_blocks, top_left_corners):
+    #     print("Nonzero block:")
+    #     print(block)
+    #     print("Top-left corner:", corner)
