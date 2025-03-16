@@ -22,7 +22,7 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
     ```python Generate.py```
 
   - Scalable (Synthetic dataset)
-  - 
+  
     ```cd ./dataset_synthetic/```
     
     ```python Generate_Synthetic.py```
@@ -48,7 +48,9 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
   to normalize the data.
 
 - Training GCN or GCNPNAGAT:
+- 
   ```python GCN.py```
+
   ```python GCNPNAGAT.py```
 
 ## Publications
