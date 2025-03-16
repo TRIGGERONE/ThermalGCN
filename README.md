@@ -48,7 +48,7 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
   to normalize the data.
 
 - Training GCN or GCNPNAGAT:
-- 
+  
   ```python GCN.py```
 
   ```python GCNPNAGAT.py```
