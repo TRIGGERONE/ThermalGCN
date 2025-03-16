@@ -1,33 +1,47 @@
-# ThermalGCN
+# T2GCN
 
-ThermalGCN is a fast graph convolutional networks(GCN)-based method for thermal simulation of chiplet-based systems.
+T2GCN is the trasnferable ThermalGCN, a fast graph convolutional networks(GCN)-based method for thermal simulation of chiplet-based systems.
 
 - Use global information (total power) as input,
 - Apply the skip connection in graph convolution network,
 - Integrate PNA network into the model,
-- Use edge based attention network to represent the connection effect.
+- Use edge based attention network to represent the connection effect,
+- Utilize more generalized dataset synthesis generation algorithms.
 
 ## Installation
 
-ThermalGCN requires Pytorch and DGL to be installed as backend. 
+ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend. 
 
 ## Instructions
-- Random chiplet layout generation:
+- Chiplet layout generation:
   
-  cd ./dataset/
-  
-  python Generate.py
+  - Random (Original dataset)
+    cd ./dataset_original/
+    
+    python Generate.py
+
+  - Scalable (Synthetic dataset)
+    cd ./dataset_synthetic/
+    
+    python Generate_Synthetic.py
+
+  - Placement-aware
+    cd ./dataset_special/
+    
+    python layout_generation.py
+
+
 
 - Obtain dataset:
 
-  create a folder named "data".
+  In each sub dataset (dataset_original etc.)
 
-  python run.py to run hotspot and generate dataset which is stored into "./dataset/data".
+  python run.py to run hotspot and generate dataset which is stored into "./dataset_xxx/data".
   
   python data_preprocess.py to normalize the data.
 
-- Training GCN:
-
+- Training GCN or GCNPNAGAT:
+  python GCN.py
   python GCNPNAGAT.py
 
 ## Publications
