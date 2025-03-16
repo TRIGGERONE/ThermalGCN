@@ -16,19 +16,22 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
 - Chiplet layout generation:
   
   - Random (Original dataset)
-    cd ./dataset_original/
     
-    python Generate.py
+    ```cd ./dataset_original/```
+    
+    ```python Generate.py```
 
   - Scalable (Synthetic dataset)
-    cd ./dataset_synthetic/
+  - 
+    ```cd ./dataset_synthetic/```
     
-    python Generate_Synthetic.py
+    ```python Generate_Synthetic.py```
 
   - Placement-aware
-    cd ./dataset_special/
     
-    python layout_generation.py
+    ```cd ./dataset_special/```
+    
+    ```python layout_generation.py```
 
 
 
@@ -36,13 +39,17 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
 
   In each sub dataset (dataset_original etc.)
 
-  python run.py to run hotspot and generate dataset which is stored into "./dataset_xxx/data".
+  ```python run.py```
   
-  python data_preprocess.py to normalize the data.
+  to run hotspot and generate dataset which is stored into "./dataset_xxx/data".
+  
+  ```python data_preprocess.py```
+  
+  to normalize the data.
 
 - Training GCN or GCNPNAGAT:
-  python GCN.py
-  python GCNPNAGAT.py
+  ```python GCN.py```
+  ```python GCNPNAGAT.py```
 
 ## Publications
 
