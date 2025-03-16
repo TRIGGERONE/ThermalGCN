@@ -2,6 +2,7 @@
 
 import dgl
 import dgl.function as fn
+from dgl import DGLGraph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,10 +15,7 @@ from numpy import genfromtxt
 import csv
 from shutil import copyfile
 
-dataset_dir = './newdata/'
-
-
-
+dataset_dir = "./newlayout/newdata/"
 
 MaxMinValues = genfromtxt(dataset_dir + 'MaxMinValues.csv', delimiter=',')
 
@@ -33,19 +31,20 @@ Conductance_min = MaxMinValues[1, 7]
 print(tPower_max, tPower_min, Power_max,Power_min,Temperature_max,Temperature_min,Conductance_max,Conductance_min)
 
 last_saved_epoch = 0
-date = '20210225'
+date = '20250311'
 dir_name = 'GCN'
-ckpt_dir = 'ckpt/{}_{}'.format(dir_name, date)
-is_inference = True
+ckpt_dir = f'ckpt/constr_{dir_name}_{date}'
+
+if not os.path.exists(ckpt_dir):
+    os.mkdir(ckpt_dir)
+
+is_inference = False
 ckpt_file = ckpt_dir + '/HSgcn_92.pkl'
 
 n_hidden_n = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 1]#[1, 16, 32,32,  64,64, 128,128, 256,256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 64]
 e_hidden_e = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 0]#[1, 16, 32,32,  64,64, 128,128, 256,256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 0]
 
-#MLP_hidden_n = [64, 64, 128, 128, 256, 256, 512, 512, 1024, 1024, 2048,2048, 4096, 4096, 2048, 2048, 1024,1024, 512,512, 256,256, 128,128, 64,64,  1]
-
-
-batch_size = 2
+batch_size = 1
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -54,15 +53,14 @@ else:
     device = torch.device('cpu')
     print('Runing on CPU!')
 
-#device = torch.device('cpu')
-
 class HSConv(nn.Module):
     def __init__(self,
-                 Skipnode_in_feats_size,
-                 node_in_feats_size,
-                 edge_in_feats_size,
-                 node_out_feats_size,
-                 edge_out_feats_size):
+        Skipnode_in_feats_size,
+        node_in_feats_size,
+        edge_in_feats_size,
+        node_out_feats_size,
+        edge_out_feats_size
+    ):
         super(HSConv, self).__init__()
 
         self.Skipnode_in_feats_size = Skipnode_in_feats_size
@@ -77,7 +75,7 @@ class HSConv(nn.Module):
         self.bias_n = nn.Parameter(torch.Tensor(self.node_out_feats_size))
 
         if self.edge_out_feats_size != 0:
-            self.weight_n2e_u = nn.Parameter(torch.Tensor(self.node_in_feats_size,self.edge_out_feats_size))
+            self.weight_n2e_u = nn.Parameter(torch.Tensor(self.node_in_feats_size, self.edge_out_feats_size))
             self.weight_n2e_v = nn.Parameter(torch.Tensor(self.Skipnode_in_feats_size + self.node_in_feats_size,self.edge_out_feats_size))
             self.weight_e2e = nn.Parameter(torch.Tensor(self.edge_in_feats_size + self.edge_out_feats_size,self.edge_out_feats_size))
             self.bias_e = nn.Parameter(torch.Tensor(self.edge_out_feats_size))
@@ -104,7 +102,7 @@ class HSConv(nn.Module):
             stdv8 = 0.2 / math.sqrt(self.bias_e.size(0))
             self.bias_e.data.uniform_(-stdv8, stdv8)
             
-    def forward(self, g, Skipnode_in_feats, node_in_feats, edge_in_feats):
+    def forward(self, g: DGLGraph, Skipnode_in_feats, node_in_feats, edge_in_feats):
         with g.local_scope():
             g.ndata['h1'] = torch.mm(node_in_feats,self.weight_n2n_u)
             g.edata['e1'] = torch.mm(edge_in_feats,self.weight_e2n)
@@ -129,10 +127,11 @@ class HSConv(nn.Module):
 
 class HSModel(nn.Module):
     def __init__(self,
-                 Skipnode_in_feats_size,
-                 n_hidden_n,
-                 e_hidden_e,
-                 activation):
+        Skipnode_in_feats_size,
+        n_hidden_n,
+        e_hidden_e,
+        activation
+    ):
         super(HSModel, self).__init__()
         self.layers = nn.ModuleList()
         self.activation = activation
@@ -140,9 +139,9 @@ class HSModel(nn.Module):
         self.edge_out_feats_size = e_hidden_e[-1]
 
         for i in range(self.n_layers - 1):
-            self.layers.append(HSConv( Skipnode_in_feats_size, n_hidden_n[i], e_hidden_e[i], n_hidden_n[i + 1], e_hidden_e[i + 1]))
+            self.layers.append(HSConv(Skipnode_in_feats_size, n_hidden_n[i], e_hidden_e[i], n_hidden_n[i + 1], e_hidden_e[i + 1]))
             
-    def forward(self, g, Skipnode_in_feats, node_in_feats, edge_in_feats):
+    def forward(self, g: DGLGraph, Skipnode_in_feats, node_in_feats, edge_in_feats):
         hv = node_in_feats
         he = edge_in_feats
         for l, layer in enumerate(self.layers):
@@ -164,8 +163,9 @@ def normal_init(m, mean, std):
 
 class MLP(nn.Module):
     def __init__(self,
-                 skipnode_in_feats_size,
-                 MLP_hidden_n):
+        skipnode_in_feats_size,
+        MLP_hidden_n
+    ):
         super(MLP, self).__init__()
         self.layers = nn.ModuleList()
         for i in range(len(MLP_hidden_n) - 1):
@@ -185,30 +185,24 @@ class MLP(nn.Module):
 
         return hv 
         
-def evaluate(model, g, node_feats1, node_feats2, node_labels, edge_features):
+def evaluate(model, g: DGLGraph, node_feats1, node_feats2, node_labels, edge_features):
     model.eval()
-   # node_MLP.eval()
     with torch.no_grad():
-        #hc = torch.cat([node_feats1, node_feats2], dim=1)
         nt = model(g, node_feats2, node_feats1, edge_features)
-        #nt = node_MLP(node_feats2,nt)
     
-        
-        err = torch.sum((node_labels - nt)** 2)
-        
+        err = torch.sum((node_labels - nt) ** 2)    # MSE, What is node_labels
         length = nt.shape[0] * nt.shape[1]
         
         rmse = torch.sqrt(err / length)
-
         MAE = torch.mean(torch.abs(node_labels-nt))
 
         AEmax = torch.max(torch.abs(node_labels-nt))
-
         AEmin = torch.min(torch.abs(node_labels-nt))
 
         return rmse, nt, MAE, AEmax, AEmin
 
-def read_node(train_batch):
+
+def read_node(dataset_dir: str, train_batch):
     node_feats1_list = []
     node_feats2_list = []
     node_labels_list = []
@@ -236,7 +230,7 @@ def read_node(train_batch):
 
     return batched_node_feats1,batched_node_feats2,batched_node_labels
 
-def read_edge(train_batch):
+def read_edge(dataset_dir: str, train_batch):
     g_list = []
     edge_feats_list = []
     for case_num in train_batch:
@@ -277,13 +271,10 @@ def main():
     num_test = len(test_data)
 
     model = HSModel(1, n_hidden_n, e_hidden_e, F.relu)
-    #node_MLP = MLP(1,MLP_hidden_n)
 
     if not is_inference:
         model.to(device=device)
-        #node_MLP.to(device=device)
-        
-        
+
         MSEloss = nn.MSELoss()
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
@@ -293,24 +284,25 @@ def main():
 
         dur=[0]
         
-        for epoch in range(30000):
+        for epoch in range(30):
 
             train_data = np.array(train_data)
             train_data = np.random.permutation(train_data)
             train_data = train_data.reshape(-1).tolist()
 
             model.train()
-            #node_MLP.train()
 
             epoch_loss = 0
             epoch_acc = 0
-
-            if epoch >=3:
+            epoch_MAE = 0
+            epoch_AEmax = 0
+            
+            if epoch >= 3:
                 t0 = time.time()
             for i in range(0, num_train, batch_size):  
                 train_batch = train_data[i : min(i+batch_size, num_train)]
-                g, edge_feats = read_edge(train_batch)
-                node_feats1, node_feats2, node_labels = read_node(train_batch)
+                g, edge_feats = read_edge(dataset_dir=dataset_dir, train_batch=train_batch)
+                node_feats1, node_feats2, node_labels = read_node(dataset_dir=dataset_dir, train_batch=train_batch)
 
                 g = g.to(device=device)
                 node_feats1 = torch.Tensor(node_feats1).to(device=device)
@@ -329,32 +321,15 @@ def main():
 
                 loss.backward()
                 optimizer.step()
-                #optimizer_MLP.step()
 
-
-                acc_current, node_output = evaluate(model, g, node_feats1, node_feats2,node_labels, edge_feats)
+                acc_current, node_output, MAE, AEmax, _ = evaluate(model, g, node_feats1, node_feats2, node_labels, edge_feats)
                 epoch_acc += acc_current
                 epoch_loss += loss.item()
-                
-                #Temperature_output = open('./newdataGCN/Temperature_output_{}.csv'.format('0_0'),'w')
-                #for m in range(node_output.shape[0]):
-                #    Temperature_output.write(str(m)+","+str((node_output[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_output.close()
+                epoch_MAE += MAE
+                if epoch_AEmax < AEmax:
+                    epoch_AEmax = AEmax
 
-                #Temperature_labels = open('./newdataGCN/Temperature_labels_{}.csv'.format('0_0'),'w')
-                #for m in range(node_labels.shape[0]):
-                #    Temperature_labels.write(str(m)+","+str((node_labels[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_labels.close()
-                
-                #Temperature_base = open('./newdataGCN/Temperature_base_{}.csv'.format('0_0'),'w')
-                #for m in range(node_feats2.shape[0]):
-                #    Temperature_base.write(str(m)+","+str((node_feats2[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_base.close()
-
-                if i+2*batch_size >= num_train and i+batch_size<num_train:
+                if i + 2 * batch_size >= num_train and i + batch_size < num_train:
                     length_pred = int(math.sqrt((node_output.shape[0]/batch_size - 12)/3))
                     length_stan = int(math.sqrt((node_labels.shape[0]/batch_size - 12)/3))
                     for t in range(1):
@@ -376,24 +351,28 @@ def main():
             
                         os.system(cmd)
 
-                print(epoch,i)
+                if i % 50 == 0:
+                    print(f"epoch: {epoch}, i: {i}")
                 
-            if epoch >=3:
+            if epoch >= 3:
                 dur.append(time.time() - t0)
 
             epoch_acc /= int(num_train/batch_size) + (num_train % batch_size > 0)
             epoch_loss /= int(num_train / batch_size) + (num_train % batch_size > 0)
+            epoch_MAE /= int(num_train / batch_size) + (num_train % batch_size>0)
             
-            print("Train Epoch {:05d} |Time(s) {:.4f} | Loss {:04f} | Accuracy {:.4f}".format(epoch, np.mean(dur), epoch_loss, epoch_acc))
-            with open(dataset_dir + 'train_acc.txt','a') as Train_Acc_file:
-                Train_Acc_file.write("{:05d} {:04f} {:.4f}\n".format(epoch, epoch_loss, epoch_acc))
+            # print(f"Train Epoch {epoch} |Time(s) {np.mean(dur)} | Loss {epoch_loss} | Accuracy {epoch_acc} | MAE {epoch_MAE * (Temperature_max - Temperature_min)} | AEmax {epoch_AEmax*(Temperature_max - Temperature_min)}")
+            with open(dataset_dir + 'train_acc_GCN_syn.txt','a') as Train_Acc_file:
+                Train_Acc_file.write(f"epoch: {epoch}, epoch_loss: {epoch_loss}, epoch_acc: {epoch_acc}, MAE: {epoch_MAE*(Temperature_max - Temperature_min)}, AEmax: {epoch_AEmax*(Temperature_max - Temperature_min)}\n")
             
 
             if epoch % 1 == 0:
                 epoch_test_acc = 0
+                epoch_test_MAE = 0
+                epoch_test_AEmax = 0
                 for i in range(0, num_test, batch_size):  
                     test_batch = test_data[i : min(i+batch_size, num_test)]
-                    g, edge_feats = read_edge(test_batch)
+                    g, edge_feats = read_edge(dataset_dir=dataset_dir, train_batch=test_batch)
                     node_feats1, node_feats2, node_labels = read_node(test_batch)
 
                     g = g.to(device=device)
@@ -402,12 +381,12 @@ def main():
                     node_labels = torch.Tensor(node_labels).to(device=device)
                     edge_feats = torch.Tensor(edge_feats).to(device=device)
 
-                    
-                        
-                        
-                    acc, node_output = evaluate(model,  g, node_feats1,node_feats2,node_labels,edge_feats)
+                    acc, node_output, MAE, AEmax, _ = evaluate(model,  g, node_feats1,node_feats2,node_labels,edge_feats)
                     
                     epoch_test_acc += acc
+                    epoch_test_MAE += MAE
+                    if epoch_test_AEmax < AEmax:
+                        epoch_test_AEmax = AEmax
 
                     if i+2*batch_size >= num_test and i+batch_size < num_test:
                         with open(dataset_dir+'Chiplet.grid.steady','w') as grid:
@@ -429,24 +408,19 @@ def main():
                         os.system(cmd)
 
                 epoch_test_acc /= int(num_test/batch_size) + (num_test%batch_size > 0)
-                print("Test Epoch {:05d} | Accuracy {:.4f}".format(epoch, epoch_test_acc))
-                with open(dataset_dir + 'train_acc.txt','a') as Train_Acc_file:
-                    Train_Acc_file.write("{:05d} {:.4f}\n".format(epoch, epoch_test_acc))
-            
-                  
-                
+                epoch_test_MAE /= int(num_test/batch_size) + (num_test % batch_size > 0)
+
+                print(f"Test Epoch {epoch} | Accuracy {epoch_test_acc}")
+                with open(dataset_dir + 'train_acc_GCN_syn.txt','a') as Train_Acc_file:
+                    Train_Acc_file.write(f"epoch: {epoch}, epoch_test_acc {epoch_test_acc}, test_MAE: {epoch_test_MAE*(Temperature_max - Temperature_min)} test_AE: {epoch_test_AEmax*(Temperature_max - Temperature_min)}\n")
             
             if epoch_test_acc < Test_Acc_min:
                 Test_Acc_min = epoch_test_acc
                 if os.path.exists(ckpt_dir + '/HSgcn_{}.pkl'.format(last_saved_epoch)):
                     os.remove(ckpt_dir + '/HSgcn_{}.pkl'.format(last_saved_epoch))
-                #if os.path.exists(ckpt_dir + '/HSdecoder_{}.pkl'.format(last_saved_epoch)):
-                #    os.remove(ckpt_dir + '/HSdecoder_{}.pkl'.format(last_saved_epoch))
 
                 torch.save(model.state_dict(), ckpt_dir + '/HSgcn_{}.pkl'.format(epoch))
                 print("model saved")
-                #torch.save(node_MLP.state_dict(), ckpt_dir + '/HSdecoder_{}.pkl'.format(epoch))
-                #print("decoder saved")
                 
                 last_saved_epoch = epoch
 
@@ -454,7 +428,7 @@ def main():
         model.load_state_dict(torch.load(ckpt_file, map_location=device))
         model.to(device=device)
 
-        print('batch size: {}, num_test: {}'.format(batch_size, num_test))
+        print(f'batch size: {batch_size}, num_test: {num_test}')
 
         epoch_test_acc = 0
         epoch_test_MAE = 0
@@ -465,7 +439,7 @@ def main():
         epoch_test_MinID = 0
 
         for i in range(0, num_test, batch_size):
-            test_batch = test_data[i : min(i+batch_size, num_test)]
+            test_batch = test_data[i : min(i + batch_size, num_test)]
             g, edge_feats = read_edge(test_batch)
             node_feats1, node_feats2, node_labels = read_node(test_batch)
 
@@ -474,7 +448,6 @@ def main():
             node_feats2 = torch.Tensor(node_feats2).to(device=device)
             node_labels = torch.Tensor(node_labels).to(device=device)
             edge_feats = torch.Tensor(edge_feats).to(device=device)
-            
             
             acc, node_output, MAE, AEmax, AEmin = evaluate(model, g, node_feats1,node_feats2,node_labels,edge_feats)
             
@@ -488,12 +461,12 @@ def main():
                 epoch_test_MinID = i
             if epoch_test_Min > AEmin:
                 epoch_test_Min = AEmin
-            print("Test {} | Accuracy {:.4f} | MAE {:.4f} | Max {:.4f} | Min {:.4f}".format(i, acc, MAE*(Temperature_max - Temperature_min), AEmax*(Temperature_max-Temperature_min), AEmin*(Temperature_max-Temperature_min)))
+            print(f"Test {i} | Accuracy {acc:.4f} | MAE {MAE*(Temperature_max - Temperature_min):.4f} | Max {AEmax*(Temperature_max-Temperature_min):.4f} | Min {AEmin*(Temperature_max-Temperature_min):.4f}")
         
         epoch_test_acc /= int(num_test/batch_size)+int(num_test%batch_size>0)
         epoch_test_MAE /= int(num_test/batch_size)+int(num_test%batch_size>0)
 
-        print("Accuracy {:.4f} | MAE {:.4f} | Max {:.4f} | Min {:.4f}".format(epoch_test_acc, epoch_test_MAE*(Temperature_max-Temperature_min), epoch_test_Max*(Temperature_max - Temperature_min), epoch_test_Min*(Temperature_max-Temperature_min)))
+        print(f"Accuracy {epoch_test_acc:.4f} | MAE {epoch_test_MAE*(Temperature_max-Temperature_min):.4f} | Max {epoch_test_Max*(Temperature_max - Temperature_min):.4f} | Min {epoch_test_Min*(Temperature_max-Temperature_min):.4f}")
 
         test_batch = test_data[epoch_test_MaxID : min(epoch_test_MaxID+batch_size, num_test)]
         g, edge_feats = read_edge(test_batch)
@@ -505,7 +478,6 @@ def main():
         node_labels = torch.Tensor(node_labels).to(device=device)
         edge_feats = torch.Tensor(edge_feats).to(device=device)
             
-            
         acc, node_output, MAE, AEmax, AEmin = evaluate(model, g, node_feats1,node_feats2,node_labels,edge_feats)
         
         length_pred = 64
@@ -514,10 +486,10 @@ def main():
         with open(dataset_dir+'Chiplet.grid.steady','w') as grid:
             for m in range(length_pred):
                 for n in range(length_pred):
-                    grid.write(str(m*length_pred+n)+" "+ str((node_output[m*length_pred+n][0].tolist()+1)/2.0*(Temperature_max -Temperature_min)+Temperature_min)+"\n")
+                    grid.write(str(m * length_pred+n)+" "+ str((node_output[m*length_pred+n][0].tolist()+1)/2.0*(Temperature_max -Temperature_min)+Temperature_min)+"\n")
                 grid.write("\n")
         cmd = "../grid_thermal_map.pl Chiplet_Core"+ test_batch[0][:test_batch[0].find('_')]+".flp "+dataset_dir+"Chiplet.grid.steady "+str(length_pred)+" "+ str(length_pred)+" > "+dataset_dir+"test_Chiplet_pred_max.svg"
-                
+        
         os.system(cmd)
     
         with open(dataset_dir+'Chiplet.grid.steady','w') as grid:
@@ -528,7 +500,6 @@ def main():
         cmd = "../grid_thermal_map.pl Chiplet_Core"+ test_batch[0][:test_batch[0].find('_')]+".flp "+dataset_dir+"Chiplet.grid.steady "+str(length_stan)+" "+ str(length_stan)+" > "+dataset_dir+"test_Chiplet_stan_max.svg"
                 
         os.system(cmd)
-
         
         test_batch = test_data[epoch_test_MinID : min(epoch_test_MinID+batch_size, num_test)]
         g, edge_feats = read_edge(test_batch)
@@ -539,7 +510,6 @@ def main():
         node_feats2 = torch.Tensor(node_feats2).to(device=device)
         node_labels = torch.Tensor(node_labels).to(device=device)
         edge_feats = torch.Tensor(edge_feats).to(device=device)
-            
             
         acc, node_output, MAE, AEmax, AEmin = evaluate(model, g, node_feats1,node_feats2,node_labels,edge_feats)
 
@@ -563,6 +533,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()       
+    main()
 
 

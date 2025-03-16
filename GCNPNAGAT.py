@@ -21,7 +21,6 @@ results_dir = './dataset/dataresults/'
 if not os.path.exists(results_dir):
     os.mkdir(results_dir)
 
-
 MaxMinValues = genfromtxt(dataset_dir + 'MaxMinValues.csv', delimiter=',')
 
 tPower_max = MaxMinValues[1, 0]
@@ -33,22 +32,24 @@ Temperature_min = MaxMinValues[1, 5]
 Conductance_max = MaxMinValues[1, 6]
 Conductance_min = MaxMinValues[1, 7]
 
-print(tPower_max, tPower_min, Power_max,Power_min,Temperature_max,Temperature_min,Conductance_max,Conductance_min)
+print(tPower_max, tPower_min, Power_max, Power_min, Temperature_max, Temperature_min, Conductance_max, Conductance_min)
 
 last_saved_epoch = 0
-date = '20210225'
+date = '20250311'
 dir_name = 'GCN'
-ckpt_dir = 'ckptPNAGAT/{}_{}'.format(dir_name, date)
+ckpt_dir = f'ckptPNAGAT/{dir_name}_{date}'
+
+if not os.path.exists(ckpt_dir):
+    os.mkdir(ckpt_dir)
+
 is_inference = False
 ckpt_file = ckpt_dir + '/HSgcn_57.pkl'
 
 n_hidden_n = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 1]#[1, 16, 32,32,  64,64, 128,128, 256,256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 64]
 e_hidden_e = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 0]#[1, 16, 32,32,  64,64, 128,128, 256,256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 0]
 
-#MLP_hidden_n = [64, 64, 128, 128, 256, 256, 512, 512, 1024, 1024, 2048,2048, 4096, 4096, 2048, 2048, 1024,1024, 512,512, 256,256, 128,128, 64,64,  1]
 
-
-batch_size = 1
+batch_size = 2
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -59,7 +60,6 @@ elif torch.mps.is_available():
 else:
     device = torch.device('cpu')
     print('Runing on CPU!')
-
 
 EPS = 1e-5
 
@@ -73,10 +73,10 @@ def aggregate_min(h):
     return torch.min(h, dim=1)[0]
 
 def aggregate_std(h):
-    h_mean_squares = torch.mean(h*h, dim=-2)
-    h_mean = torch.mean(h,dim=-2)
-    var = torch.relu(h_mean_squares-h_mean*h_mean)
-    return torch.sqrt(var+EPS)
+    h_mean_squares = torch.mean(h * h, dim=-2)
+    h_mean = torch.mean(h, dim=-2)
+    var = torch.relu(h_mean_squares - h_mean * h_mean)
+    return torch.sqrt(var + EPS)
 
 PNAaggregators = [aggregate_mean, aggregate_max, aggregate_min, aggregate_std]
 
@@ -144,7 +144,7 @@ class HSConv(nn.Module):
         self.scalers = scalers
         self.avg_d = avg_d
 
-        self.posttrans = MLP([self.node_out_feats_size*len(aggregators)*len(scalers), self.node_out_feats_size]) 
+        self.posttrans = MLP([self.node_out_feats_size * len(aggregators) * len(scalers), self.node_out_feats_size]) 
 
         self.weight_n2n_u = nn.Parameter(torch.Tensor(self.node_in_feats_size,self.node_out_feats_size))
         self.weight_n2n_v = nn.Parameter(torch.Tensor(self.Skipnode_in_feats_size+self.node_in_feats_size + self.node_out_feats_size,self.node_out_feats_size))
@@ -252,12 +252,9 @@ class HSModel(nn.Module):
         
 def evaluate(model, g, node_feats1, node_feats2, node_labels, edge_features):
     model.eval()
-   # node_MLP.eval()
     with torch.no_grad():
         #hc = torch.cat([node_feats1, node_feats2], dim=1)
         nt = model(g, node_feats2, node_feats1, edge_features)
-        #nt = node_MLP(node_feats2,nt)
-    
         
         err = torch.sum((node_labels - nt)** 2)
         
@@ -339,49 +336,39 @@ def main():
     test_data = test_data.reshape(-1).tolist()
     num_test = len(test_data)
 
+    print(num_train, num_test)
+
     model = HSModel(1, n_hidden_n, e_hidden_e, PNAaggregators, PNAscalers, {'log': np.log(7)}, F.relu)
-    #node_MLP = MLP(1,MLP_hidden_n)
 
     if not is_inference:
         model.to(device=device)
-        #node_MLP.to(device=device)
-        
         
         MSEloss = nn.MSELoss()
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-        #optimizer_MLP = torch.optim.Adam(node_MLP.parameters(), lr=1e-4)
         
-        print('batch size: {}, num_train: {}'.format(batch_size, num_train))
+        print(f'batch size: {batch_size}, num_train: {num_train}')
 
         dur=[0]
-
         epoch_mem = 0
 
-        #if os.path.exists(ckpt_dir+'/HSgcn.pt'):
-        #    checkpoint = torch.load(ckpt_dir+'/HSgcn.pt')
-        #    model.load_state_dict(checkpoint['model_state_dict'])
-        #    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        #    epoch_mem = checkpoint['epoch']+1
-        
-        for epoch in range(epoch_mem,30000):
+        for epoch in range(epoch_mem, 30000):
 
             train_data = np.array(train_data)
             train_data = np.random.permutation(train_data)
             train_data = train_data.reshape(-1).tolist()
 
             model.train()
-            #node_MLP.train()
 
             epoch_loss = 0
             epoch_acc = 0
             epoch_MAE = 0
             epoch_AEmax = 0
 
-            if epoch >=3:
+            if epoch >= 3:
                 t0 = time.time()
             for i in range(0, num_train, batch_size):  
-                train_batch = train_data[i : min(i+batch_size, num_train)]
+                train_batch = train_data[i : min(i + batch_size, num_train)]
                 g, edge_feats = read_edge(train_batch)
                 node_feats1, node_feats2, node_labels = read_node(train_batch)
 
@@ -391,48 +378,25 @@ def main():
                 node_labels = torch.Tensor(node_labels).to(device=device)
                 edge_feats = torch.Tensor(edge_feats).to(device=device)
 
-                #hc = torch.cat([node_feats1,node_feats2], dim=1)
                 hv = model(g, node_feats2, node_feats1, edge_feats)
 
-                # loss = MSEloss(hv,node_labels)+MSEloss(he,edge_labels)
                 loss = MSEloss(hv,node_labels)
                 
                 optimizer.zero_grad()
-                #optimizer_MLP.zero_grad()
 
                 loss.backward()
                 optimizer.step()
-                #optimizer_MLP.step()
 
-
-                acc_current, node_output, MAE, AEmax, _ = evaluate(model, g, node_feats1, node_feats2,node_labels, edge_feats)
+                acc_current, node_output, MAE, AEmax, _ = evaluate(model, g, node_feats1, node_feats2, node_labels, edge_feats)
                 epoch_acc += acc_current
                 epoch_loss += loss.item()
                 epoch_MAE += MAE
                 if epoch_AEmax < AEmax:
                     epoch_AEmax = AEmax
-                
-                #Temperature_output = open('./newdataGCN/Temperature_output_{}.csv'.format('0_0'),'w')
-                #for m in range(node_output.shape[0]):
-                #    Temperature_output.write(str(m)+","+str((node_output[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_output.close()
 
-                #Temperature_labels = open('./newdataGCN/Temperature_labels_{}.csv'.format('0_0'),'w')
-                #for m in range(node_labels.shape[0]):
-                #    Temperature_labels.write(str(m)+","+str((node_labels[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_labels.close()
-                
-                #Temperature_base = open('./newdataGCN/Temperature_base_{}.csv'.format('0_0'),'w')
-                #for m in range(node_feats2.shape[0]):
-                #    Temperature_base.write(str(m)+","+str((node_feats2[m][0].tolist()+1)/2.0*(Temperature_max - Temperature_min)+Temperature_min)+"\n")
-                
-                #Temperature_base.close()
-
-                if i+2*batch_size >= num_train and i+batch_size<num_train:
-                    length_pred = int(math.sqrt((node_output.shape[0]/batch_size - 12)/3))
-                    length_stan = int(math.sqrt((node_labels.shape[0]/batch_size - 12)/3))
+                if i + 2 * batch_size >= num_train and i + batch_size < num_train:
+                    length_pred = int(math.sqrt((node_output.shape[0]/batch_size - 12) / 3))
+                    length_stan = int(math.sqrt((node_labels.shape[0]/batch_size - 12) / 3))
                     for t in range(1):
                         with open(results_dir+'Chiplet.grid.steady','w') as grid:
                             for m in range(length_pred):
@@ -451,19 +415,20 @@ def main():
                         cmd = "../grid_thermal_map.pl Chiplet_Core"+ train_batch[t][:train_batch[t].find('_')]+".flp "+results_dir+"Chiplet.grid.steady "+str(length_stan)+" "+ str(length_stan)+" > "+results_dir+"train_Chiplet_stan"+str(epoch)+"_"+str(0)+".svg"
             
                         os.system(cmd)
-
-                print(epoch,i)
                 
-            if epoch >=3:
+                if i % 10 == 0:
+                    print(f"epoch: {epoch}, i: {i}")
+                
+            if epoch >= 3:
                 dur.append(time.time() - t0)
 
-            epoch_acc /= int(num_train/batch_size) + (num_train % batch_size > 0)
+            epoch_acc /= int(num_train / batch_size) + (num_train % batch_size > 0)
             epoch_loss /= int(num_train / batch_size) + (num_train % batch_size > 0)
-            epoch_MAE /= int(num_train/batch_size) + (num_train%batch_size>0)
+            epoch_MAE /= int(num_train / batch_size) + (num_train % batch_size>0)
             
-            print("Train Epoch {:05d} |Time(s) {:.4f} | Loss {:04f} | Accuracy {:.4f} | MAE {:.4f} | AEmax {:.4f}".format(epoch, np.mean(dur), epoch_loss, epoch_acc, epoch_MAE*(Temperature_max - Temperature_min), epoch_AEmax*(Temperature_max - Temperature_min)))
+            print(f"Train Epoch {epoch} |Time(s) {np.mean(dur)} | Loss {epoch_loss} | Accuracy {epoch_acc} | MAE {epoch_MAE*(Temperature_max - Temperature_min)} | AEmax {epoch_AEmax*(Temperature_max - Temperature_min)}")
             with open(results_dir + 'train_acc.txt','a') as Train_Acc_file:
-                Train_Acc_file.write("{:05d} {:04f} {:.4f} {:.4f} {:.4f}\n".format(epoch, epoch_loss, epoch_acc, epoch_MAE*(Temperature_max - Temperature_min), epoch_AEmax*(Temperature_max - Temperature_min)))
+                Train_Acc_file.write(f"epoch: {epoch}, epoch_loss: {epoch_loss}, epoch_acc: {epoch_acc}, MAE: {epoch_MAE*(Temperature_max - Temperature_min)}, AEmax: {epoch_AEmax*(Temperature_max - Temperature_min)}\n")
             
 
             if epoch % 1 == 0:
@@ -472,7 +437,7 @@ def main():
                 epoch_test_AEmax = 0
                 for i in range(0, num_test, batch_size):  
                     test_batch = test_data[i : min(i+batch_size, num_test)]
-                    g, edge_feats = read_edge(test_batch)
+                    g, 3 = read_edge(test_batch)
                     node_feats1, node_feats2, node_labels = read_node(test_batch)
 
                     g = g.to(device=device)
@@ -481,9 +446,6 @@ def main():
                     node_labels = torch.Tensor(node_labels).to(device=device)
                     edge_feats = torch.Tensor(edge_feats).to(device=device)
 
-                    
-                        
-                        
                     acc, node_output, MAE, AEmax, _ = evaluate(model,  g, node_feats1,node_feats2,node_labels,edge_feats)
                     
                     epoch_test_acc += acc
@@ -491,8 +453,8 @@ def main():
                     if epoch_test_AEmax < AEmax:
                         epoch_test_AEmax = AEmax
 
-                    if i+2*batch_size >= num_test and i+batch_size < num_test:
-                        with open(results_dir+'Chiplet.grid.steady','w') as grid:
+                    if i + 2 * batch_size >= num_test and i + batch_size < num_test:
+                        with open(results_dir + 'Chiplet.grid.steady','w') as grid:
                             for m in range(length_pred):
                                 for n in range(length_pred):
                                     grid.write(str(m*length_pred+n)+" "+ str((node_output[m*length_pred+n][0].tolist()+1)/2.0*(Temperature_max -Temperature_min)+Temperature_min)+"\n")
@@ -510,31 +472,25 @@ def main():
                 
                         os.system(cmd)
 
-                epoch_test_acc /= int(num_test/batch_size) + (num_test%batch_size > 0)
-                epoch_test_MAE /= int(num_test/batch_size) + (num_test%batch_size > 0)
+                epoch_test_acc /= int(num_test/batch_size) + (num_test % batch_size > 0)
+                epoch_test_MAE /= int(num_test/batch_size) + (num_test % batch_size > 0)
 
-                print("Test Epoch {:05d} | Accuracy {:.4f} | MAE {:.4f} | AEmax {:.4f}".format(epoch, epoch_test_acc, epoch_test_MAE*(Temperature_max - Temperature_min), epoch_test_AEmax*(Temperature_max - Temperature_min)))
+                print(f"Test Epoch {epoch} | Accuracy {epoch_test_acc} | MAE {epoch_test_MAE*(Temperature_max - Temperature_min)} | AEmax {epoch_test_AEmax*(Temperature_max - Temperature_min)}")
                 with open(results_dir + 'train_acc.txt','a') as Train_Acc_file:
-                    Train_Acc_file.write("{:05d} {:.4f} {:.4f} {:.4f}\n".format(epoch, epoch_test_acc, epoch_test_MAE*(Temperature_max - Temperature_min), epoch_test_AEmax*(Temperature_max - Temperature_min)))
-            
-                  
+                    Train_Acc_file.write(f"epoch: {epoch}, epoch_test_acc: {epoch_test_acc}, test_MAE: {epoch_test_MAE*(Temperature_max - Temperature_min)} test_AE: {epoch_test_AEmax*(Temperature_max - Temperature_min)}\n")
                 
             
             if epoch_test_acc < Test_Acc_min:
                 Test_Acc_min = epoch_test_acc
-                if os.path.exists(ckpt_dir + '/HSgcn_{}.pkl'.format(last_saved_epoch)):
-                    os.remove(ckpt_dir + '/HSgcn_{}.pkl'.format(last_saved_epoch))
-                #if os.path.exists(ckpt_dir + '/HSdecoder_{}.pkl'.format(last_saved_epoch)):
-                #    os.remove(ckpt_dir + '/HSdecoder_{}.pkl'.format(last_saved_epoch))
+                if os.path.exists(ckpt_dir + f'/HSgcn_{last_saved_epoch}.pkl'):
+                    os.remove(ckpt_dir + f'/HSgcn_{last_saved_epoch}.pkl')
 
-                torch.save(model.state_dict(), ckpt_dir + '/HSgcn_{}.pkl'.format(epoch))
+                torch.save(model.state_dict(), ckpt_dir + f'/HSgcn_{epoch}.pkl')
                 print("model saved")
-                #torch.save(node_MLP.state_dict(), ckpt_dir + '/HSdecoder_{}.pkl'.format(epoch))
-                #print("decoder saved")
                 
                 last_saved_epoch = epoch
 
-            if epoch%1==0:
+            if epoch % 1 == 0:
                 if os.path.exists(ckpt_dir+'/HSgcn.pt'):
                     os.remove(ckpt_dir+'/HSgcn.pt')
 
@@ -589,7 +545,7 @@ def main():
         epoch_test_MAE /= int(num_test/batch_size)+int(num_test%batch_size>0)
 
 
-        print("Accuracy {:.4f} | MAE {:.4f} | Max {:.4f} | Min {:.4f}".format(epoch_test_acc, epoch_test_MAE*(Temperature_max - Temperature_min), epoch_test_Max*(Temperature_max-Temperature_min), epoch_test_Min*(Temperature_max-Temperature_min)))
+        print(f"Accuracy {epoch_test_acc:.4f} | MAE {epoch_test_MAE*(Temperature_max - Temperature_min):.4f} | Max {epoch_test_Max*(Temperature_max-Temperature_min):.4f} | Min {epoch_test_Min*(Temperature_max-Temperature_min):.4f}")
         
         test_batch = test_data[epoch_test_MaxID : min(epoch_test_MaxID+batch_size, num_test)]
         g, edge_feats = read_edge(test_batch)
@@ -601,9 +557,7 @@ def main():
         node_labels = torch.Tensor(node_labels).to(device=device)
         edge_feats = torch.Tensor(edge_feats).to(device=device)
             
-            
         acc, node_output, MAE, AEmax, AEmin = evaluate(model, g, node_feats1,node_feats2,node_labels,edge_feats)
-       
         length_pred = 64
         length_stan = 64
 
@@ -622,7 +576,7 @@ def main():
                     grid.write(str(m*length_stan+n)+" "+ str((node_labels[m*length_stan+n][0].tolist()+1)/2.0*(Temperature_max -Temperature_min)+Temperature_min)+"\n")
                 grid.write("\n")
         cmd = "../grid_thermal_map.pl Chiplet_Core"+ test_batch[0][:test_batch[0].find('_')]+".flp "+dataset_dir+"Chiplet.grid.steady "+str(length_stan)+" "+ str(length_stan)+" > "+dataset_dir+"test_Chiplet_stan_max.svg"
-               
+
         os.system(cmd)
 
         test_batch = test_data[epoch_test_MinID : min(epoch_test_MinID+batch_size, num_test)]
@@ -634,10 +588,9 @@ def main():
         node_feats2 = torch.Tensor(node_feats2).to(device=device)
         node_labels = torch.Tensor(node_labels).to(device=device)
         edge_feats = torch.Tensor(edge_feats).to(device=device)
-            
-            
+
         acc, node_output, MAE, AEmax, AEmin = evaluate(model, g, node_feats1,node_feats2,node_labels,edge_feats)
-       
+
         with open(dataset_dir+'Chiplet.grid.steady','w') as grid:
             for m in range(length_pred):
                 for n in range(length_pred):
@@ -653,10 +606,7 @@ def main():
                     grid.write(str(m*length_stan+n)+" "+ str((node_labels[m*length_stan+n][0].tolist()+1)/2.0*(Temperature_max -Temperature_min)+Temperature_min)+"\n")
                 grid.write("\n")
         cmd = "../grid_thermal_map.pl Chiplet_Core"+ test_batch[0][:test_batch[0].find('_')]+".flp "+dataset_dir+"Chiplet.grid.steady "+str(length_stan)+" "+ str(length_stan)+" > "+dataset_dir+"test_Chiplet_stan_min.svg"
-               
         os.system(cmd)
-
-        
 
 
 if __name__ == '__main__':
