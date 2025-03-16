@@ -10,7 +10,9 @@ T2GCN is the trasnferable ThermalGCN, a fast graph convolutional networks(GCN)-b
 
 ## Installation
 
-ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend. 
+ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend using ```conda``` or ```pip```.
+All other missing packages can also be install with ```conda``` or ```pip```.
+
 
 ## Instructions
 - Chiplet layout generation:

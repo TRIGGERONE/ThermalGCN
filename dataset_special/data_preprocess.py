@@ -39,7 +39,6 @@ Conductance_min = np.amin(edge_feats[:, 2])
 if not os.path.exists('./newdata'):
     os.mkdir('./newdata')
 
-
 for i in range(50):
     for j in range(Num_power):
         node_feats = genfromtxt('./data/Power_{}_{}.csv'.format(i,j), delimiter=',')

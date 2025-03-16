@@ -1,7 +1,9 @@
 import os
 import time
 
-
+data_dir = "./data"
+if not os.path.exists(data_dir):
+    os.mkdir(data_dir)
 
 for i in range(50):
     ChipletCoreFile = "Chiplet_Core"+str(i)+".flp"
@@ -16,12 +18,12 @@ for i in range(50):
         print(i,j)
 
         
-        EdgeFile = "./data/Edge"+"_"+str(i)+"_"+str(j)+".csv"
-        os.rename("./data/Edge.csv", EdgeFile)
-        TempFile = "./data/Temperature"+"_"+str(i)+"_"+str(j)+".csv"
-        os.rename("./data/Temperature.csv", TempFile)
-        PowerFile = "./data/Power"+"_"+str(i)+"_"+str(j)+".csv"
-        os.rename("./data/Power.csv", PowerFile)
+        EdgeFile = f"{data_dir}/Edge"+"_"+str(i)+"_"+str(j)+".csv"
+        os.rename(f"{data_dir}/Edge.csv", EdgeFile)
+        TempFile = f"{data_dir}/Temperature"+"_"+str(i)+"_"+str(j)+".csv"
+        os.rename(f"{data_dir}/Temperature.csv", TempFile)
+        PowerFile = f"{data_dir}/Power"+"_"+str(i)+"_"+str(j)+".csv"
+        os.rename(f"{data_dir}/Power.csv", PowerFile)
 
 
     os.rename("Chiplet_Core.flp", ChipletCoreFile)

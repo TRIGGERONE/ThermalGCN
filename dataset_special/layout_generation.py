@@ -2,10 +2,8 @@ import random
 import os
 import torch
 import math
-import numpy as np
 from torch.utils.data import WeightedRandomSampler
 from torch import Tensor
-from scipy.ndimage import label, find_objects
 
 Center = [3, 4, 5, 6, 7, 8, 9]
 ChipW = 12
@@ -23,10 +21,10 @@ def region_generate(
         device: torch.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     ) -> None:
 
-    assert mode in ['random', 'dreamplace'], f"{mode} not supported yet"
+    if not os.path.exists(layout_path):
+        os.mkdir(layout_path)
 
-    # if not os.path.exists(layout_path):
-    #     os.mkdir(layout_path)
+    assert mode in ['random', 'dreamplace'], f"{mode} not supported yet"
 
     num_core_grid_x = (CoreW / ChipW * num_grid_x).__floor__()
     num_core_grid_y = (CoreW / ChipW * num_grid_y).__floor__()
@@ -68,7 +66,12 @@ def region_generate(
     return core_UL_row, core_UL_col, num_core_grid_x, num_core_grid_y
 
 
-def update_probability_map(center: list, proba_map: Tensor, alpha: float, beta: float) -> Tensor:
+def update_probability_map(
+        center: list, 
+        proba_map: Tensor, 
+        alpha: float, 
+        beta: float
+    ) -> Tensor:
     for i in range(proba_map.shape[0]):
         for j in range(proba_map.shape[1]):
             L1norm = math.sqrt(((i - center[1]) ** 2 + (j - center[0]) ** 2))
@@ -89,7 +92,13 @@ def calculate_total_distance(core_UL_row: list, core_UL_col: list) -> float:
     return distance
 
 
-def check_intersection(core_UL_row: list, core_UL_col: list, num_core_grid_x: int, num_core_grid_y: int, count: int = 0):
+def check_intersection(
+        core_UL_row: list, 
+        core_UL_col: list, 
+        num_core_grid_x: int, 
+        num_core_grid_y: int, 
+        count: int = 0
+    ):
     for i in range(0, len(core_UL_row)):
         for j in range(i + 1, len(core_UL_row)):
             if (core_UL_row[i] - core_UL_row[j]).__abs__() < num_core_grid_x:
@@ -140,7 +149,7 @@ def regionCreate(
     return info
     
 
-def dataset_generation(count: int = 1, mode: str = "random"):
+def dataset_generation(device: torch.device, count: int = 1, mode: str = "random"):
     total_dis = 0
     total_count = count
     core_UL_row_list, core_UL_col_list = [], []
@@ -150,7 +159,8 @@ def dataset_generation(count: int = 1, mode: str = "random"):
             num_grid_x=100,
             num_grid_y=100,
             numcore=4,
-            mode=mode
+            mode=mode,   # generate layout by random or placement-aware
+            device=device
         )
         count, dis = check_intersection(
             core_UL_row=core_UL_row,
@@ -162,6 +172,7 @@ def dataset_generation(count: int = 1, mode: str = "random"):
         print(count)
 
         if dis is not None:
+            # If pass the sanity check, record the layout
             total_dis += dis
             core_UL_row_list.append(core_UL_row)
             core_UL_col_list.append(core_UL_col)
@@ -200,4 +211,5 @@ def dataset_generation(count: int = 1, mode: str = "random"):
 
 if __name__ == "__main__":
     torch.random.manual_seed(1234)
-    dataset_generation(count = 50, mode="dreamplace")
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    dataset_generation(count = 50, mode="dreamplace", device = device)
