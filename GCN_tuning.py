@@ -1,6 +1,6 @@
-import dgl
-import dgl.function as fn
-from dgl import DGLGraph
+# import dgl
+# import dgl.function as fn
+# from dgl import DGLGraph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,12 +9,11 @@ import time
 import os
 import numpy as np
 from numpy import genfromtxt
-
 import csv
-from shutil import copyfile
+
 from GCN import HSModel, read_edge, read_node, evaluate
 
-dataset_dir = "./newlayout/newdata/"
+dataset_dir = "./dataset_special/newdata/"
 
 MaxMinValues = genfromtxt(dataset_dir + 'MaxMinValues.csv', delimiter=',')
 
@@ -38,8 +37,9 @@ if not os.path.exists(ckpt_dir):
     os.mkdir(ckpt_dir)
 
 is_inference = False
-ckpt_file = ckpt_dir + '/HSgcn_26.pkl'
+ckpt_file = ckpt_dir + '/HSgcn_26.pkl'  # best model from pre-training
 
+# Model architecture
 n_hidden_n = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 1]#[1, 16, 32, 32, 64, 64, 128, 128, 256, 256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 64]
 e_hidden_e = [1, 16, 32, 64, 128, 256, 512, 512, 512, 256, 128, 64, 32, 16, 0]#[1, 16, 32,32,  64,64, 128,128, 256,256, 512,512,  1024,  512,512, 256,256,128, 128, 64, 0]
 
@@ -112,10 +112,8 @@ def fine_tuning(model_path: str, model_name: str, model: HSModel, tuning_epoch: 
 
         model.train()
 
-        epoch_loss_spec = 0
-        epoch_acc_spec = 0
-        epoch_MAE_spec = 0
-        epoch_AEmax_spec = 0
+        epoch_loss_spec, epoch_acc_spec = 0, 0
+        epoch_MAE_spec, epoch_AEmax_spec = 0, 0
 
         if epoch >= 3:
             t0 = time.time()
@@ -179,7 +177,7 @@ def fine_tuning(model_path: str, model_name: str, model: HSModel, tuning_epoch: 
         epoch_loss_spec /= int(num_train / batch_size) + (num_train % batch_size > 0)
         epoch_MAE_spec /= int(num_train / batch_size) + (num_train % batch_size>0)
             
-            # print(f"Train Epoch {epoch} |Time(s) {np.mean(dur)} | Loss {epoch_loss} | Accuracy {epoch_acc} | MAE {epoch_MAE * (Temperature_max - Temperature_min)} | AEmax {epoch_AEmax*(Temperature_max - Temperature_min)}")
+        # print(f"Train Epoch {epoch} |Time(s) {np.mean(dur)} | Loss {epoch_loss} | Accuracy {epoch_acc} | MAE {epoch_MAE * (Temperature_max - Temperature_min)} | AEmax {epoch_AEmax*(Temperature_max - Temperature_min)}")
         with open(dataset_dir + 'train_acc_GCN_tun.txt','a') as Train_Acc_file:
             Train_Acc_file.write(f"epoch: {epoch}, epoch_loss: {epoch_loss_spec}, epoch_acc: {epoch_acc_spec}, MAE: {epoch_MAE_spec * (Temperature_max - Temperature_min)}, AEmax: {epoch_AEmax_spec * (Temperature_max - Temperature_min)}\n")
 
@@ -231,8 +229,7 @@ def fine_tuning(model_path: str, model_name: str, model: HSModel, tuning_epoch: 
             with open(dataset_dir + 'train_acc_GCN_tun.txt','a') as Train_Acc_file:
                 Train_Acc_file.write(f"epoch: {epoch}, epoch_test_acc {epoch_test_acc}, test_MAE: {epoch_test_MAE*(Temperature_max - Temperature_min)} test_AE: {epoch_test_AEmax*(Temperature_max - Temperature_min)}\n")
             
-        # Save the best model according to test
-        
+        # Save the best model according to test, FIXME: Better to save best-3 models in the future
         if epoch_test_acc < Test_Acc_min:
             Test_Acc_min = epoch_test_acc
             if os.path.exists(ckpt_dir + f'/HSgcn_{last_saved_epoch}_FT.pkl'):
@@ -249,7 +246,7 @@ if __name__ == "__main__":
     fine_tuning(
         model=HSModel(1, n_hidden_n, e_hidden_e, F.relu),
         model_path="ckpt/Syn_GCN_20250311",
-        model_name="HSgcn_26.pkl",
-        tuning_epoch=20,
-        num_tunable_layer=10
+        model_name="HSgcn_26.pkl",  # FIXME: can be add as args. in the future
+        tuning_epoch=10,
+        num_tunable_layer=10    # Tunable layers, how many layers should be fine-tuned, counted form the last
     )

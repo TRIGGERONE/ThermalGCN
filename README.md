@@ -53,6 +53,10 @@ ThermalGCN or T2GCN require Pytorch and DGL to be installed as backend.
 
   ```python GCNPNAGAT.py```
 
+- Fine-tuning the model from pre-trained model:
+  
+  ```python3 GCN_tuning.py```
+
 ## Publications
 
 L. Chen, W. Jin and S. X.-D. Tan, "Fast Thermal Analysis for Chiplet Design based on Graph Convolution Networks," 2022 27th Asia and South Pacific Design Automation Conference (ASP-DAC), 2022, pp. 485-492..
@@ -62,3 +66,6 @@ L. Chen, W. Jin and S. X.-D. Tan, "Fast Thermal Analysis for Chiplet Design base
 ThermalGCN was originally developed by [Liang Chen](https://vsclab.ece.ucr.edu/people/liang-chen) and [Wentian Jin](https://vsclab.ece.ucr.edu/people/wentian-jin) at [VSCLAB](https://vsclab.ece.ucr.edu/VSCLAB) under the supervision of Prof. [Sheldon Tan](https://profiles.ucr.edu/app/home/profile/sheldont).
 
 ThermalGCN is currently maintained by [Liang Chen](https://vsclab.ece.ucr.edu/people/liang-chen).
+
+T2GCN is currently developed by [Haotian Lu](https://github.com/TRIGGERONE) and [Sai Surya Vidul Chinthamaneni](https://github.com/Mathio11).
+
