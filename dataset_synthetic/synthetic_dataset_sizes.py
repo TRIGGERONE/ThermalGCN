@@ -2,37 +2,23 @@ import glob
 import os
 
 
+# Results of generate_synthetic.py
 
-
-# For results of generate_synthetic.py
-
-
-# Get the absolute path of the directory containing this script.
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Count floorplan files (Synthetic_Chiplet_*.flp).
+# Counting floorplan files 
 flp_pattern = os.path.join(BASE_DIR, "Synthetic_Chiplet_*.flp")
 flp_files = glob.glob(flp_pattern)
 print("Number of floorplan files generated:", len(flp_files))
 
-# Count power trace files (Synthetic_Chiplet_*_Power*.ptrace).
+# Counting power trace files
 ptrace_pattern = os.path.join(BASE_DIR, "Synthetic_Chiplet_*_Power*.ptrace")
 ptrace_files = glob.glob(ptrace_pattern)
 print("Number of power trace files generated:", len(ptrace_files))
 
 
 
-
-
-
-
-
-
-
-
-
-
-# For results of run_synthetic.py
+# Results of run_synthetic.py
 
 data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 
@@ -44,18 +30,11 @@ print("Number of Power files:", len(power_files))
 print("Number of Temperature files:", len(temperature_files))
 print("Number of Edge files:", len(edge_files))
 
-
-
-
-
-# Total number of layouts expected
 num_layouts = 400
-
 missing_files = []
 
 for i in range(num_layouts):
     if i == 0:
-        # For layout 0, we expect "Chiplet_Core.flp"
         expected_file = "Chiplet_Core.flp"
     else:
         expected_file = f"Synthetic_Chiplet_{i}.flp"
@@ -71,15 +50,8 @@ else:
 
 
 
+# Results of data_prerpocess_synthetic.py
 
-
-
-
-
-# For results of data_prerpocess_synthetic.py
-
-
-# Set the path to the newdata folder
 newdata_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'newdata')
 
 # Define file paths
