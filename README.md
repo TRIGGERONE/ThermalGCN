@@ -39,13 +39,13 @@ All other missing packages can also be install with ```conda``` or ```pip```.
 
 - Obtain dataset:
 
-  In each sub dataset (dataset_original etc.)
+  In each respective sub dataset (dataset_original etc.)
 
-  ```python run.py```
+  ```python run.py/ python run_synthetic.py/....```
   
-  to run hotspot and generate dataset which is stored into "./dataset_xxx/data".
+  to run hotspot and generate respective dataset which is stored into "./dataset_xxx/data".
   
-  ```python data_preprocess.py```
+  ```python data_preprocess.py/ python data_preprocess_synthetic.py/.....```
   
   to normalize the data.
 
@@ -57,7 +57,7 @@ All other missing packages can also be install with ```conda``` or ```pip```.
 
 - Fine-tuning the model from pre-trained model:
   
-  ```python3 GCN_tuning.py```
+  ```python GCN_tuning.py```
 
 ## Publications
 
@@ -69,5 +69,5 @@ ThermalGCN was originally developed by [Liang Chen](https://vsclab.ece.ucr.edu/p
 
 ThermalGCN is currently maintained by [Liang Chen](https://vsclab.ece.ucr.edu/people/liang-chen).
 
-T2GCN is currently developed by [Haotian Lu](https://github.com/TRIGGERONE) and [Sai Surya Vidul Chinthamaneni](https://github.com/Mathio11).
+T2GCN was developed by [Haotian Lu](https://github.com/TRIGGERONE) and [Sai Surya Vidul Chinthamaneni](https://github.com/Mathio11).
 
