@@ -2,13 +2,13 @@ import os
 import time
 import glob
 
-# Create required directories if they don't exist
+# Dir check and creation
 if not os.path.exists('./data'):
     os.makedirs('./data')
 
 num_layout = 100
 
-# Check which combinations are already processed
+# Check for already existing files
 existing_files = set()
 for file in glob.glob("./data/Power_*_*.csv"):
     basename = os.path.basename(file)
@@ -20,14 +20,15 @@ for file in glob.glob("./data/Power_*_*.csv"):
 
 print(f"Found {len(existing_files)} existing processed files")
 
-# Process all synthetic layouts
+# Processing all synthetic layouts
 for i in range(num_layout):
+    
     # Get chip size from layout_params
-    chip_size = 12  # Default size
+    chip_size = 12  
     try:
         with open('./dataset_synthetic/layout_params.csv', 'r') as f:
             lines = f.readlines()
-            for line in lines[1:]:  # Skip header
+            for line in lines[1:]:  
                 parts = line.strip().split(',')
                 if int(parts[0]) == i:
                     chip_size = int(parts[2])
@@ -35,7 +36,7 @@ for i in range(num_layout):
     except FileNotFoundError:
         print(f"Warning: layout_params.csv not found, using default chip size of 12mm")
     
-    # Calculate grid resolution based on chip size with bounds
+    # Calculation of grid resolution based on chip size with bounds
     grid_resolution = min(max(int(64 * (chip_size / 12)), 32), 512)
     
     synthetic_file = f"Synthetic_Chiplet_{i}.flp"
@@ -43,9 +44,8 @@ for i in range(num_layout):
         print(f"Warning: {synthetic_file} not found, skipping layout {i}")
         continue
         
-    # Process each power variation
+    # Processing each power variation
     for j in range(20):
-        # Skip if this combination is already processed
         if (i, j) in existing_files:
             print(f"Skipping existing file for Layout {i}, Power {j}")
             continue
@@ -55,15 +55,15 @@ for i in range(num_layout):
             print(f"Warning: {power_file_name} not found, skipping power variation {j}")
             continue
 
-        # Rename the floorplan file to Chiplet_Core.flp for HotSpot
+        # Renaming of the floorplan file for HotSpot
         os.rename(synthetic_file, "Chiplet_Core.flp")
         
-        # Try different grid resolutions if the first one fails
+        # Trying different grid resolutions if the first one failed
         grid_resolutions = [grid_resolution, 64, 128, 256, 32]
         success = False
         
         for res in grid_resolutions:
-            # Run HotSpot simulation with current grid resolution
+            # HotSpot simulation 
             cmd = f"../hotspot -c ./hotspot.config -f Chiplet_Core.flp -p {power_file_name} -steady_file Chiplet.steady -model_type grid -grid_rows {res} -grid_cols {res} -grid_steady_file Chiplet.grid.steady"
             
             tmr_start = time.time()
@@ -72,18 +72,16 @@ for i in range(num_layout):
             
             print(f"Layout {i}, Power {j}, Grid {res}: {tmr_end - tmr_start}s")
             
-            # Check if command succeeded and output files exist
             if result == 0 and os.path.exists("./data/Edge.csv"):
                 success = True
                 break
         
         if not success:
             print(f"Failed to simulate layout {i}, power {j} with all grid resolutions")
-            # Restore original filename
             os.rename("Chiplet_Core.flp", synthetic_file)
             continue
             
-        # Check if output files exist before renaming
+        # Output files check before renaming
         if os.path.exists("./data/Edge.csv"):
             edge_file = f"./data/Edge_{i}_{j}.csv"
             os.rename("./data/Edge.csv", edge_file)
@@ -102,7 +100,7 @@ for i in range(num_layout):
         else:
             print(f"Warning: Power.csv not generated for layout {i}, power {j}")
             
-        # Restore original filename
+        # Restoring original name
         os.rename("Chiplet_Core.flp", synthetic_file)
         
     print(f"Completed layout {i}")
