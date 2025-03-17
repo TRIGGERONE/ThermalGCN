@@ -190,7 +190,7 @@ def evaluate(model, g: DGLGraph, node_feats1, node_feats2, node_labels, edge_fea
     with torch.no_grad():
         nt = model(g, node_feats2, node_feats1, edge_features)
     
-        err = torch.sum((node_labels - nt) ** 2)    # MSE, What is node_labels
+        err = torch.sum((node_labels - nt) ** 2)    
         length = nt.shape[0] * nt.shape[1]
         
         rmse = torch.sqrt(err / length)
@@ -278,7 +278,6 @@ def main():
         MSEloss = nn.MSELoss()
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-        #optimizer_MLP = torch.optim.Adam(node_MLP.parameters(), lr=1e-4)
         
         print('batch size: {}, num_train: {}'.format(batch_size, num_train))
 
