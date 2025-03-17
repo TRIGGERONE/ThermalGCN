@@ -39,15 +39,17 @@ All other missing packages can also be install with ```conda``` or ```pip```.
 
 - Obtain dataset:
 
-  In each respective sub dataset (dataset_original etc.)
+  In each respective sub dataset (dataset_original/dataset_synthetic/dataset_special), to run hotspot and generate the respective dataset
 
-  ```python run.py/ python run_synthetic.py/....```
+  ```python run.py/ python run_synthetic.py/ python run.py```
   
-  to run hotspot and generate respective dataset which is stored into "./dataset_xxx/data".
+  To preprocess and normalize the data, which is stored into "./dataset_xxx/data".
   
-  ```python data_preprocess.py/ python data_preprocess_synthetic.py/.....```
+  ```python data_preprocess.py/ python data_preprocess_synthetic.py/ python data_preprocess.py```
+
+  In the case of the synthetic dataset, the number of samples and files generated at each step can be checked by
   
-  to normalize the data.
+  ```python synthetic_dataset_sizes.py```
 
 - Training GCN or GCNPNAGAT:
   
