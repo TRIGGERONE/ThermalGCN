@@ -185,10 +185,10 @@ def layout_generation(num_layout: int = 50):
                 for col in range(grid_size):
                     if len(regions) < chiplet_count:
                         regions.append((
-                            col * cell_size,  # x0
-                            row * cell_size,  # y0
-                            cell_size,        # width
-                            cell_size         # height
+                            col * cell_size,  
+                            row * cell_size,  
+                            cell_size,        
+                            cell_size         
                         ))
             
             # Placing chiplets in regions
